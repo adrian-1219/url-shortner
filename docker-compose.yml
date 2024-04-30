@@ -1,0 +1,65 @@
+version: "3"
+services:
+  visualizer:
+    image: dockersamples/visualizer:stable
+    ports:
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+    networks:
+      - a2net
+  redis_master:
+    image: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - "/home/student/redisVolume/data:/data"
+      - "/home/student/a2group98/redis/redisMaster.conf:/app/redis.conf"
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+    command: redis-server /app/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+    networks:
+      - a2net
+  redis_replica:
+    image: redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - "/home/student/a2group98/redis/redisReplica.conf:/app/redis.conf"
+    deploy:
+      placement:
+        constraints: [node.role == worker]
+      mode: replicated
+      replicas: 3
+    command: redis-server /app/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+    networks:
+      - a2net
+    depends_on:
+      - redis_master
+  url_shortner:
+    image: zhaoalan/csc409:python-url-shortner
+    ports:
+      - "4005:5000"
+    volumes:
+      - "/home/student/urlShortnerLogs:/app/logs" 
+    hostname: url_shortner
+    deploy:
+      mode: replicated
+      replicas: 4
+    depends_on: 
+      - redis_master
+      - redis_replica
+    networks:
+      - a2net
+networks:
+  a2net:
+     
+
